@@ -18,11 +18,13 @@ import {
 } from "../systems/population.js";
 
 import {
-    getMoney
+    getMoney,
+    produceFactoryIncome
 } from "../systems/economy.js";
 
 import {
-    buildCity
+    buildCity,
+    buildFactory
 } from "../systems/buildings.js";
 
 const canvas = document.getElementById("gameCanvas");
@@ -33,26 +35,32 @@ let buildingMode = null;
 
 createMap();
 
-// Kamera zentrieren
 function centerCamera() {
     camera.x = canvas.clientWidth / 2 - (35 * TILE_SIZE) / 2;
     camera.y = canvas.clientHeight / 2 - (25 * TILE_SIZE) / 2;
 }
 
-// Städte zählen
-function getCityCounts() {
-    const counts = { 1: 0, 2: 0 };
+function getBuildingCounts() {
+    const counts = {
+        cities: { 1: 0, 2: 0 },
+        factories: { 1: 0, 2: 0 }
+    };
 
     for (const tile of tiles) {
-        if (tile.building === "city" && tile.owner !== null) {
-            counts[tile.owner]++;
+        if (tile.owner === null) continue;
+
+        if (tile.building === "city") {
+            counts.cities[tile.owner]++;
+        }
+
+        if (tile.building === "factory") {
+            counts.factories[tile.owner]++;
         }
     }
 
     return counts;
 }
 
-// Geld lesbar formatieren
 function formatMoney(value) {
     if (value >= 1_000_000_000) {
         return (value / 1_000_000_000).toFixed(2).replace(".", ",") + " Mrd. €";
@@ -65,7 +73,6 @@ function formatMoney(value) {
     return Math.floor(value).toLocaleString("de-DE") + " €";
 }
 
-// Anzeigen aktualisieren
 function updateInterface() {
     const ownedTiles = tiles.filter(
         tile => tile.owner === currentPlayer
@@ -82,42 +89,59 @@ function updateInterface() {
     document.getElementById("populationCount").textContent =
         `Bevölkerung: ${Math.floor(stats.population).toLocaleString("de-DE")} / ${stats.capacity.toLocaleString("de-DE")}`;
 
+    document.getElementById("freePopulation").textContent =
+        `Frei: ${Math.floor(stats.free).toLocaleString("de-DE")}`;
+
     document.getElementById("moneyCount").textContent =
         `Geld: ${formatMoney(getMoney(currentPlayer))}`;
 }
 
-// Baumodus aktivieren
-document.getElementById("buildCityButton").addEventListener("click", () => {
+function setBuildingMode(mode) {
     if (paused) return;
 
-    buildingMode = buildingMode === "city" ? null : "city";
+    buildingMode = buildingMode === mode ? null : mode;
 
     document.getElementById("buildCityButton").classList.toggle(
         "active",
         buildingMode === "city"
     );
 
+    document.getElementById("buildFactoryButton").classList.toggle(
+        "active",
+        buildingMode === "factory"
+    );
+
+    const messages = {
+        city: "Stadtbau aktiv: Klicke auf eine freie eigene Landkachel.",
+        factory: "Fabrikbau aktiv: Klicke auf eine freie eigene Landkachel neben einer Stadt."
+    };
+
     document.getElementById("gameMessage").textContent =
-        buildingMode === "city"
-            ? "Stadtbau aktiv: Klicke auf eine freie eigene Landkachel."
-            : "Baumodus beendet.";
+        buildingMode ? messages[buildingMode] : "Baumodus beendet.";
+}
 
-    renderMap();
-});
+document.getElementById("buildCityButton").addEventListener(
+    "click",
+    () => setBuildingMode("city")
+);
 
-// Spieler wechseln
+document.getElementById("buildFactoryButton").addEventListener(
+    "click",
+    () => setBuildingMode("factory")
+);
+
 document.getElementById("switchPlayer").addEventListener("click", () => {
     currentPlayer = currentPlayer === 1 ? 2 : 1;
 
     buildingMode = null;
 
     document.getElementById("buildCityButton").classList.remove("active");
+    document.getElementById("buildFactoryButton").classList.remove("active");
 
     updateInterface();
     renderMap();
 });
 
-// Pause
 document.getElementById("pauseButton").addEventListener("click", () => {
     paused = !paused;
 
@@ -125,7 +149,6 @@ document.getElementById("pauseButton").addEventListener("click", () => {
         paused ? "Fortsetzen" : "Pause";
 });
 
-// Bildschirmposition in Kartenposition umwandeln
 function getTileFromScreen(mouseX, mouseY) {
     const worldX = (mouseX - camera.x) / camera.zoom;
     const worldY = (mouseY - camera.y) / camera.zoom;
@@ -138,15 +161,11 @@ function getTileFromScreen(mouseX, mouseY) {
     );
 }
 
-// Neutrales Land erobern
 function captureTile(tile) {
     if (!tile || tile.terrain !== "land") return;
-
     if (tile.owner !== null) return;
 
-    const neighbors = getNeighbors(tile);
-
-    const isAdjacent = neighbors.some(
+    const isAdjacent = getNeighbors(tile).some(
         neighbor => neighbor.owner === currentPlayer
     );
 
@@ -161,7 +180,6 @@ function captureTile(tile) {
     renderMap();
 }
 
-// Kachel anklicken
 function handleTileClick(tile) {
     if (paused || !tile) return;
 
@@ -173,8 +191,23 @@ function handleTileClick(tile) {
 
         if (result.success) {
             buildingMode = null;
-
             document.getElementById("buildCityButton").classList.remove("active");
+        }
+
+        updateInterface();
+        renderMap();
+        return;
+    }
+
+    if (buildingMode === "factory") {
+        const result = buildFactory(tile, currentPlayer, tiles);
+
+        document.getElementById("gameMessage").textContent =
+            result.message;
+
+        if (result.success) {
+            buildingMode = null;
+            document.getElementById("buildFactoryButton").classList.remove("active");
         }
 
         updateInterface();
@@ -188,7 +221,6 @@ function handleTileClick(tile) {
 // Maussteuerung
 let dragging = false;
 let moved = false;
-
 let lastMouseX = 0;
 let lastMouseY = 0;
 
@@ -229,14 +261,15 @@ window.addEventListener("mouseup", event => {
     if (!moved) {
         const rect = canvas.getBoundingClientRect();
 
-        const mouseX = event.clientX - rect.left;
-        const mouseY = event.clientY - rect.top;
-
-        handleTileClick(getTileFromScreen(mouseX, mouseY));
+        handleTileClick(
+            getTileFromScreen(
+                event.clientX - rect.left,
+                event.clientY - rect.top
+            )
+        );
     }
 });
 
-// Mausrad-Zoom
 canvas.addEventListener("wheel", event => {
     event.preventDefault();
 
@@ -248,16 +281,10 @@ canvas.addEventListener("wheel", event => {
     const oldZoom = camera.zoom;
     const factor = event.deltaY < 0 ? 1.1 : 0.9;
 
-    const newZoom = Math.min(
-        2.5,
-        Math.max(0.4, oldZoom * factor)
-    );
+    const newZoom = Math.min(2.5, Math.max(0.4, oldZoom * factor));
 
-    camera.x = mouseX -
-        (mouseX - camera.x) * (newZoom / oldZoom);
-
-    camera.y = mouseY -
-        (mouseY - camera.y) * (newZoom / oldZoom);
+    camera.x = mouseX - (mouseX - camera.x) * (newZoom / oldZoom);
+    camera.y = mouseY - (mouseY - camera.y) * (newZoom / oldZoom);
 
     camera.zoom = newZoom;
 
@@ -266,6 +293,7 @@ canvas.addEventListener("wheel", event => {
 
 // Spielschleife
 let previousTime = performance.now();
+let incomeTimer = 0;
 
 function gameLoop(currentTime) {
     const deltaTime = Math.min(
@@ -276,7 +304,17 @@ function gameLoop(currentTime) {
     previousTime = currentTime;
 
     if (!paused) {
-        updatePopulation(deltaTime, getCityCounts());
+        const counts = getBuildingCounts();
+
+        updatePopulation(deltaTime, counts.cities);
+
+        incomeTimer += deltaTime;
+
+        if (incomeTimer >= 5) {
+            produceFactoryIncome(counts.factories);
+            incomeTimer -= 5;
+        }
+
         updateInterface();
     }
 
