@@ -43,11 +43,9 @@ export function renderMap() {
         const x = tile.x * TILE_SIZE;
         const y = tile.y * TILE_SIZE;
 
-        if (tile.terrain === "water") {
-            ctx.fillStyle = "#173b59";
-        } else {
-            ctx.fillStyle = "#6b985d";
-        }
+        ctx.fillStyle = tile.terrain === "water"
+            ? "#173b59"
+            : "#6b985d";
 
         if (tile.owner !== null) {
             ctx.fillStyle = playerColors[tile.owner];
@@ -59,14 +57,18 @@ export function renderMap() {
         ctx.lineWidth = 1;
         ctx.strokeRect(x, y, TILE_SIZE, TILE_SIZE);
 
-        // Gebäude anzeigen
-        if (tile.building === "city") {
+        if (tile.building) {
+            const icons = {
+                city: "🏙️",
+                factory: "🏭"
+            };
+
             ctx.font = "27px Arial";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
 
             ctx.fillText(
-                "🏙️",
+                icons[tile.building] || "❔",
                 x + TILE_SIZE / 2,
                 y + TILE_SIZE / 2
             );
