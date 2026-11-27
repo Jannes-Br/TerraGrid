@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -16,11 +17,10 @@
             <span id="currentPlayer">Spieler 1</span>
             <span id="territoryCount">Gebiete: 0</span>
             <span id="populationCount">Bevölkerung: 100 / 500</span>
-            <span id="freePopulation">Frei: 100</span>
+            <span id="moneyCount">Geld: 1 Mrd. €</span>
         </div>
 
         <div class="controls">
-            <button id="buildCityButton">🏙️ Stadt bauen</button>
             <button id="switchPlayer">Spieler wechseln</button>
             <button id="pauseButton">Pause</button>
         </div>
@@ -30,7 +30,15 @@
         <canvas id="gameCanvas"></canvas>
 
         <div id="gameMessage">
-            Erobere Land und baue neue Städte.
+            Erobere Land und baue deine Städte.
+        </div>
+
+        <div id="buildingMenu">
+            <button id="buildCityButton" class="building-button">
+                <span class="building-icon">🏙️</span>
+                <span>Stadt</span>
+                <small>100 Mio. €</small>
+            </button>
         </div>
     </main>
 
