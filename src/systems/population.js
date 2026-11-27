@@ -2,13 +2,11 @@
 export const players = {
     1: {
         population: 100,
-        capacity: 500,
-        allocated: 0
+        capacity: 500
     },
     2: {
         population: 100,
-        capacity: 500,
-        allocated: 0
+        capacity: 500
     }
 };
 
@@ -18,8 +16,7 @@ export function getPlayerStats(playerId) {
     return {
         population: player.population,
         capacity: player.capacity,
-        allocated: player.allocated,
-        free: Math.max(0, player.population - player.allocated)
+        free: player.population
     };
 }
 
@@ -37,20 +34,6 @@ export function updatePopulation(deltaTime, cityCounts) {
     }
 }
 
-export function spendPopulation(playerId, amount) {
-    const player = players[playerId];
-
-    const free = player.population - player.allocated;
-
-    if (free < amount) {
-        return false;
-    }
-
-    player.population -= amount;
-    return true;
-}
-
 export function increaseCapacity(playerId, amount) {
     players[playerId].capacity += amount;
 }
-
