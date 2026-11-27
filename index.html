@@ -1,1 +1,38 @@
 
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TerraGrid</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header id="topbar">
+        <div class="logo">🌍 TerraGrid</div>
+
+        <div id="playerInfo">
+            <span id="currentPlayer">Spieler 1</span>
+            <span id="territoryCount">Gebiete: 0</span>
+        </div>
+
+        <div class="controls">
+            <button id="switchPlayer">Spieler wechseln</button>
+            <button id="pauseButton">Pause</button>
+        </div>
+    </header>
+
+    <main id="gameArea">
+        <canvas id="gameCanvas"></canvas>
+
+        <div id="gameMessage">
+            Klicke auf eine benachbarte neutrale Kachel, um sie zu erobern.
+        </div>
+    </main>
+
+    <script type="module" src="src/core/game.js"></script>
+
+</body>
+</html>
+
