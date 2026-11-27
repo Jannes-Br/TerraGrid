@@ -1,28 +1,42 @@
 
-import {
-    spendPopulation,
-    increaseCapacity
-} from "./population.js";
+import { spendMoney } from "./economy.js";
+import { increaseCapacity } from "./population.js";
+
+export const buildingData = {
+    city: {
+        name: "Stadt",
+        icon: "🏙️",
+        cost: 100_000_000,
+        capacity: 300
+    }
+};
 
 export function buildCity(tile, playerId) {
-    if (!tile) return false;
+    if (!tile) {
+        return { success: false, message: "Keine Kachel ausgewählt." };
+    }
 
-    // Nur eigenes Land
-    if (tile.owner !== playerId) return false;
+    if (tile.terrain !== "land") {
+        return { success: false, message: "Städte können nur auf Land gebaut werden." };
+    }
 
-    // Auf einer Kachel darf nur ein Gebäude stehen
-    if (tile.building !== null) return false;
+    if (tile.owner !== playerId) {
+        return { success: false, message: "Du kannst nur auf deinem eigenen Gebiet bauen." };
+    }
 
-    // Kosten bezahlen
-    if (!spendPopulation(playerId, 50)) {
-        return false;
+    if (tile.building !== null) {
+        return { success: false, message: "Auf dieser Kachel steht bereits ein Gebäude." };
+    }
+
+    const building = buildingData.city;
+
+    if (!spendMoney(playerId, building.cost)) {
+        return { success: false, message: "Du hast nicht genug Geld." };
     }
 
     tile.building = "city";
 
-    // Bevölkerungskapazität erhöhen
-    increaseCapacity(playerId, 300);
+    increaseCapacity(playerId, building.capacity);
 
-    return true;
+    return { success: true, message: "Stadt erfolgreich gebaut!" };
 }
-
