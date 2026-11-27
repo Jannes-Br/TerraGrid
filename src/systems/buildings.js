@@ -1,5 +1,5 @@
 
-import { spendMoney } from "./economy.js";
+import { spendMoney, getMoney } from "./economy.js";
 
 import {
     increaseCapacity,
@@ -21,6 +21,14 @@ export const buildingData = {
         cost: 250_000_000,
         workers: 50,
         income: 5_000_000
+    },
+
+    militaryBase: {
+        name: "Militärbasis",
+        icon: "🪖",
+        cost: 200_000_000,
+        workers: 100,
+        production: 10
     }
 };
 
@@ -90,15 +98,15 @@ export function buildFactory(tile, playerId, allTiles) {
         };
     }
 
-    if (playerMoneyCheck(playerId, building.cost) === false) {
+    if (getMoney(playerId) < building.cost) {
         return { success: false, message: "Nicht genug Geld." };
     }
 
-    if (!spendMoney(playerId, building.cost)) {
-        return { success: false, message: "Nicht genug Geld." };
+    if (!allocatePopulation(playerId, building.workers)) {
+        return { success: false, message: "Nicht genügend freie Bevölkerung." };
     }
 
-    allocatePopulation(playerId, building.workers);
+    spendMoney(playerId, building.cost);
 
     tile.building = "factory";
     tile.workers = building.workers;
@@ -109,8 +117,47 @@ export function buildFactory(tile, playerId, allTiles) {
     };
 }
 
-import { getMoney } from "./economy.js";
+export function buildMilitaryBase(tile, playerId, allTiles) {
+    if (!tile || tile.terrain !== "land" || tile.owner !== playerId) {
+        return { success: false, message: "Du brauchst eine eigene Landkachel." };
+    }
 
-function playerMoneyCheck(playerId, cost) {
-    return getMoney(playerId) >= cost;
+    if (tile.building !== null) {
+        return { success: false, message: "Hier steht bereits ein Gebäude." };
+    }
+
+    if (!hasAdjacentCity(tile, playerId, allTiles)) {
+        return {
+            success: false,
+            message: "Eine eigene Stadt muss direkt daneben stehen."
+        };
+    }
+
+    const building = buildingData.militaryBase;
+    const player = players[playerId];
+
+    if (player.population - player.allocated < building.workers) {
+        return {
+            success: false,
+            message: "Du brauchst 100 freie Einwohner."
+        };
+    }
+
+    if (getMoney(playerId) < building.cost) {
+        return { success: false, message: "Nicht genug Geld." };
+    }
+
+    if (!allocatePopulation(playerId, building.workers)) {
+        return { success: false, message: "Nicht genügend freie Bevölkerung." };
+    }
+
+    spendMoney(playerId, building.cost);
+
+    tile.building = "militaryBase";
+    tile.workers = building.workers;
+
+    return {
+        success: true,
+        message: "Militärbasis gebaut! 100 Einwohner wurden zugewiesen."
+    };
 }
