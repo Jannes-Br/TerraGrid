@@ -17,15 +17,12 @@ export const playerColors = {
 
 export function resizeCanvas() {
     const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
 
-    canvas.width = rect.width * window.devicePixelRatio;
-    canvas.height = rect.height * window.devicePixelRatio;
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
 
-    ctx.setTransform(
-        window.devicePixelRatio, 0,
-        0, window.devicePixelRatio,
-        0, 0
-    );
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 
 export function renderMap() {
@@ -56,22 +53,24 @@ export function renderMap() {
             ctx.fillStyle = playerColors[tile.owner];
         }
 
-        ctx.fillRect(
-            x,
-            y,
-            TILE_SIZE,
-            TILE_SIZE
-        );
+        ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
 
-        // Kachelgrenzen
         ctx.strokeStyle = "rgba(0, 0, 0, 0.25)";
         ctx.lineWidth = 1;
-        ctx.strokeRect(
-            x,
-            y,
-            TILE_SIZE,
-            TILE_SIZE
-        );
+        ctx.strokeRect(x, y, TILE_SIZE, TILE_SIZE);
+
+        // Gebäude anzeigen
+        if (tile.building === "city") {
+            ctx.font = "27px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+
+            ctx.fillText(
+                "🏙️",
+                x + TILE_SIZE / 2,
+                y + TILE_SIZE / 2
+            );
+        }
     }
 
     ctx.restore();
@@ -81,4 +80,3 @@ window.addEventListener("resize", () => {
     resizeCanvas();
     renderMap();
 });
-
