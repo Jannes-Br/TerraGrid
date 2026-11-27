@@ -18,6 +18,10 @@ import {
 } from "../systems/population.js";
 
 import {
+    getMoney
+} from "../systems/economy.js";
+
+import {
     buildCity
 } from "../systems/buildings.js";
 
@@ -25,21 +29,17 @@ const canvas = document.getElementById("gameCanvas");
 
 let currentPlayer = 1;
 let paused = false;
-let buildingCity = false;
+let buildingMode = null;
 
-// Karte erstellen
 createMap();
 
 // Kamera zentrieren
 function centerCamera() {
-    camera.x = canvas.clientWidth / 2 -
-        (35 * TILE_SIZE) / 2;
-
-    camera.y = canvas.clientHeight / 2 -
-        (25 * TILE_SIZE) / 2;
+    camera.x = canvas.clientWidth / 2 - (35 * TILE_SIZE) / 2;
+    camera.y = canvas.clientHeight / 2 - (25 * TILE_SIZE) / 2;
 }
 
-// Anzahl der Städte pro Spieler berechnen
+// Städte zählen
 function getCityCounts() {
     const counts = { 1: 0, 2: 0 };
 
@@ -50,6 +50,19 @@ function getCityCounts() {
     }
 
     return counts;
+}
+
+// Geld lesbar formatieren
+function formatMoney(value) {
+    if (value >= 1_000_000_000) {
+        return (value / 1_000_000_000).toFixed(2).replace(".", ",") + " Mrd. €";
+    }
+
+    if (value >= 1_000_000) {
+        return (value / 1_000_000).toFixed(2).replace(".", ",") + " Mio. €";
+    }
+
+    return Math.floor(value).toLocaleString("de-DE") + " €";
 }
 
 // Anzeigen aktualisieren
@@ -67,17 +80,36 @@ function updateInterface() {
         `Gebiete: ${ownedTiles}`;
 
     document.getElementById("populationCount").textContent =
-        `Bevölkerung: ${Math.floor(stats.population)} / ${stats.capacity}`;
+        `Bevölkerung: ${Math.floor(stats.population).toLocaleString("de-DE")} / ${stats.capacity.toLocaleString("de-DE")}`;
 
-    document.getElementById("freePopulation").textContent =
-        `Frei: ${Math.floor(stats.free)}`;
+    document.getElementById("moneyCount").textContent =
+        `Geld: ${formatMoney(getMoney(currentPlayer))}`;
 }
+
+// Baumodus aktivieren
+document.getElementById("buildCityButton").addEventListener("click", () => {
+    if (paused) return;
+
+    buildingMode = buildingMode === "city" ? null : "city";
+
+    document.getElementById("buildCityButton").classList.toggle(
+        "active",
+        buildingMode === "city"
+    );
+
+    document.getElementById("gameMessage").textContent =
+        buildingMode === "city"
+            ? "Stadtbau aktiv: Klicke auf eine freie eigene Landkachel."
+            : "Baumodus beendet.";
+
+    renderMap();
+});
 
 // Spieler wechseln
 document.getElementById("switchPlayer").addEventListener("click", () => {
     currentPlayer = currentPlayer === 1 ? 2 : 1;
 
-    buildingCity = false;
+    buildingMode = null;
 
     document.getElementById("buildCityButton").classList.remove("active");
 
@@ -93,21 +125,6 @@ document.getElementById("pauseButton").addEventListener("click", () => {
         paused ? "Fortsetzen" : "Pause";
 });
 
-// Stadtbaumodus
-document.getElementById("buildCityButton").addEventListener("click", () => {
-    buildingCity = !buildingCity;
-
-    document.getElementById("buildCityButton").classList.toggle(
-        "active",
-        buildingCity
-    );
-
-    document.getElementById("gameMessage").textContent =
-        buildingCity
-            ? "Klicke auf eine freie eigene Landkachel, um eine Stadt zu bauen."
-            : "Erobere Land und baue neue Städte.";
-});
-
 // Bildschirmposition in Kartenposition umwandeln
 function getTileFromScreen(mouseX, mouseY) {
     const worldX = (mouseX - camera.x) / camera.zoom;
@@ -121,11 +138,10 @@ function getTileFromScreen(mouseX, mouseY) {
     );
 }
 
-// Neutrale Kachel erobern
+// Neutrales Land erobern
 function captureTile(tile) {
-    if (paused || !tile) return;
+    if (!tile || tile.terrain !== "land") return;
 
-    if (tile.terrain !== "land") return;
     if (tile.owner !== null) return;
 
     const neighbors = getNeighbors(tile);
@@ -138,32 +154,31 @@ function captureTile(tile) {
 
     tile.owner = currentPlayer;
 
+    document.getElementById("gameMessage").textContent =
+        "Gebiet erobert!";
+
     updateInterface();
     renderMap();
 }
 
-// Stadt bauen oder Kachel erobern
+// Kachel anklicken
 function handleTileClick(tile) {
     if (paused || !tile) return;
 
-    if (buildingCity) {
-        const success = buildCity(tile, currentPlayer);
+    if (buildingMode === "city") {
+        const result = buildCity(tile, currentPlayer);
 
-        if (success) {
-            document.getElementById("gameMessage").textContent =
-                "Stadt erfolgreich gebaut.";
+        document.getElementById("gameMessage").textContent =
+            result.message;
 
-            buildingCity = false;
+        if (result.success) {
+            buildingMode = null;
 
             document.getElementById("buildCityButton").classList.remove("active");
-
-            updateInterface();
-            renderMap();
-        } else {
-            document.getElementById("gameMessage").textContent =
-                "Stadtbau nicht möglich. Prüfe Gebiet, Gebäude und Bevölkerung.";
         }
 
+        updateInterface();
+        renderMap();
         return;
     }
 
@@ -217,9 +232,7 @@ window.addEventListener("mouseup", event => {
         const mouseX = event.clientX - rect.left;
         const mouseY = event.clientY - rect.top;
 
-        const tile = getTileFromScreen(mouseX, mouseY);
-
-        handleTileClick(tile);
+        handleTileClick(getTileFromScreen(mouseX, mouseY));
     }
 });
 
@@ -233,11 +246,11 @@ canvas.addEventListener("wheel", event => {
     const mouseY = event.clientY - rect.top;
 
     const oldZoom = camera.zoom;
-    const zoomFactor = event.deltaY < 0 ? 1.1 : 0.9;
+    const factor = event.deltaY < 0 ? 1.1 : 0.9;
 
     const newZoom = Math.min(
         2.5,
-        Math.max(0.4, oldZoom * zoomFactor)
+        Math.max(0.4, oldZoom * factor)
     );
 
     camera.x = mouseX -
@@ -251,7 +264,7 @@ canvas.addEventListener("wheel", event => {
     renderMap();
 }, { passive: false });
 
-// Bevölkerung regelmäßig aktualisieren
+// Spielschleife
 let previousTime = performance.now();
 
 function gameLoop(currentTime) {
@@ -270,7 +283,7 @@ function gameLoop(currentTime) {
     requestAnimationFrame(gameLoop);
 }
 
-// Spiel starten
+// Start
 resizeCanvas();
 centerCamera();
 updateInterface();
