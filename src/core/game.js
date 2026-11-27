@@ -24,8 +24,14 @@ import {
 
 import {
     buildCity,
-    buildFactory
+    buildFactory,
+    buildMilitaryBase
 } from "../systems/buildings.js";
+
+import {
+    getTroops,
+    produceMilitaryUnits
+} from "../systems/military.js";
 
 const canvas = document.getElementById("gameCanvas");
 
@@ -43,7 +49,8 @@ function centerCamera() {
 function getBuildingCounts() {
     const counts = {
         cities: { 1: 0, 2: 0 },
-        factories: { 1: 0, 2: 0 }
+        factories: { 1: 0, 2: 0 },
+        militaryBases: { 1: 0, 2: 0 }
     };
 
     for (const tile of tiles) {
@@ -55,6 +62,10 @@ function getBuildingCounts() {
 
         if (tile.building === "factory") {
             counts.factories[tile.owner]++;
+        }
+
+        if (tile.building === "militaryBase") {
+            counts.militaryBases[tile.owner]++;
         }
     }
 
@@ -79,6 +90,7 @@ function updateInterface() {
     ).length;
 
     const stats = getPlayerStats(currentPlayer);
+    const counts = getBuildingCounts();
 
     document.getElementById("currentPlayer").textContent =
         `Spieler ${currentPlayer}`;
@@ -94,6 +106,12 @@ function updateInterface() {
 
     document.getElementById("moneyCount").textContent =
         `Geld: ${formatMoney(getMoney(currentPlayer))}`;
+
+    document.getElementById("troopCount").textContent =
+        `Truppen: ${getTroops(currentPlayer).toLocaleString("de-DE")}`;
+
+    document.getElementById("militaryBaseCount").textContent =
+        `Militärbasen: ${counts.militaryBases[currentPlayer]}`;
 }
 
 function setBuildingMode(mode) {
@@ -111,9 +129,15 @@ function setBuildingMode(mode) {
         buildingMode === "factory"
     );
 
+    document.getElementById("buildMilitaryBaseButton").classList.toggle(
+        "active",
+        buildingMode === "militaryBase"
+    );
+
     const messages = {
         city: "Stadtbau aktiv: Klicke auf eine freie eigene Landkachel.",
-        factory: "Fabrikbau aktiv: Klicke auf eine freie eigene Landkachel neben einer Stadt."
+        factory: "Fabrikbau aktiv: Klicke auf eine freie eigene Landkachel neben einer Stadt.",
+        militaryBase: "Militärbasisbau aktiv: Klicke auf eine freie eigene Landkachel neben einer Stadt."
     };
 
     document.getElementById("gameMessage").textContent =
@@ -130,13 +154,19 @@ document.getElementById("buildFactoryButton").addEventListener(
     () => setBuildingMode("factory")
 );
 
+document.getElementById("buildMilitaryBaseButton").addEventListener(
+    "click",
+    () => setBuildingMode("militaryBase")
+);
+
 document.getElementById("switchPlayer").addEventListener("click", () => {
     currentPlayer = currentPlayer === 1 ? 2 : 1;
 
     buildingMode = null;
 
-    document.getElementById("buildCityButton").classList.remove("active");
-    document.getElementById("buildFactoryButton").classList.remove("active");
+    document.querySelectorAll(".building-button").forEach(button => {
+        button.classList.remove("active");
+    });
 
     updateInterface();
     renderMap();
@@ -208,6 +238,22 @@ function handleTileClick(tile) {
         if (result.success) {
             buildingMode = null;
             document.getElementById("buildFactoryButton").classList.remove("active");
+        }
+
+        updateInterface();
+        renderMap();
+        return;
+    }
+
+    if (buildingMode === "militaryBase") {
+        const result = buildMilitaryBase(tile, currentPlayer, tiles);
+
+        document.getElementById("gameMessage").textContent =
+            result.message;
+
+        if (result.success) {
+            buildingMode = null;
+            document.getElementById("buildMilitaryBaseButton").classList.remove("active");
         }
 
         updateInterface();
@@ -293,7 +339,7 @@ canvas.addEventListener("wheel", event => {
 
 // Spielschleife
 let previousTime = performance.now();
-let incomeTimer = 0;
+let productionTimer = 0;
 
 function gameLoop(currentTime) {
     const deltaTime = Math.min(
@@ -308,11 +354,13 @@ function gameLoop(currentTime) {
 
         updatePopulation(deltaTime, counts.cities);
 
-        incomeTimer += deltaTime;
+        productionTimer += deltaTime;
 
-        if (incomeTimer >= 5) {
+        if (productionTimer >= 5) {
             produceFactoryIncome(counts.factories);
-            incomeTimer -= 5;
+            produceMilitaryUnits(counts.militaryBases);
+
+            productionTimer -= 5;
         }
 
         updateInterface();
