@@ -1,96 +1,26 @@
 
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-body {
-    background: #10151d;
-    color: white;
-    font-family: Arial, sans-serif;
-    overflow: hidden;
-}
-
-#topbar {
-    height: 65px;
-    background: #1b2532;
-    border-bottom: 1px solid #344252;
-
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-
-    padding: 0 20px;
-    position: relative;
-    z-index: 2;
-}
-
-.logo {
-    font-size: 23px;
-    font-weight: bold;
-    color: #70d6a1;
-}
-
 #playerInfo {
     display: flex;
-    gap: 25px;
-    font-size: 15px;
+    align-items: center;
+    gap: 18px;
+    font-size: 14px;
 }
 
-#currentPlayer {
-    color: #70d6a1;
-    font-weight: bold;
+#populationCount {
+    color: #80dca9;
 }
 
-.controls {
-    display: flex;
-    gap: 10px;
+#freePopulation {
+    color: #b7c8d8;
 }
 
-button {
-    background: #304357;
+button.active {
+    background: #287c58;
+    border-color: #69d6a0;
     color: white;
-    border: 1px solid #52677e;
-    padding: 9px 15px;
-    border-radius: 6px;
-    cursor: pointer;
-}
-
-button:hover {
-    background: #42617d;
-}
-
-#gameArea {
-    width: 100vw;
-    height: calc(100vh - 65px);
-    position: relative;
-    overflow: hidden;
-}
-
-#gameCanvas {
-    display: block;
-    width: 100%;
-    height: 100%;
-    cursor: grab;
-}
-
-#gameCanvas:active {
-    cursor: grabbing;
 }
 
 #gameMessage {
-    position: absolute;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-
-    background: rgba(20, 30, 42, 0.9);
-    border: 1px solid #40546a;
-    border-radius: 8px;
-
-    padding: 12px 20px;
-    font-size: 14px;
-    pointer-events: none;
+    text-align: center;
+    max-width: 90%;
 }
-
