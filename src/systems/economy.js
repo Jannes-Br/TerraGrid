@@ -21,3 +21,10 @@ export function addMoney(playerId, amount) {
     playerMoney[playerId] += amount;
 }
 
+export function produceFactoryIncome(factoryCounts) {
+    for (const playerId of [1, 2]) {
+        const factories = factoryCounts[playerId] || 0;
+
+        addMoney(playerId, factories * 5_000_000);
+    }
+}
